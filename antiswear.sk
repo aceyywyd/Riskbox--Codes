@@ -1,0 +1,21 @@
+on chat:
+    loop {antiswear::*}:
+        message contains loop-value
+        replace all "%loop-value%" in message with "&8[&c&lBAD WORD&8] &r"
+
+command /antiswear <text> <text>:
+    permission: sentinel.antiswear
+    trigger:
+        if arg-1 is "add":
+            if {antiswear::*} contains arg-2:
+                send "&bAntiswear &7already contains that word!"
+                stop
+            else:
+                add arg-2 to {antiswear::*}
+                send "&7Succesfully added &b%arg-2% &7to the &bantiswear"
+        if arg-1 is "remove":
+            remove arg-2 from {antiswear::*}
+            send "&7Succesfully removed &b%arg-2% &7from the &bantiswear" 
+
+on tab complete of "/antiswear":
+    set tab completions for position 1 to "add" and "remove"

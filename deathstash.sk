@@ -1,0 +1,77 @@
+options:
+    expire: 2 days
+
+#----------( FUNCTIONS )----------#
+
+function saveStash(v: player):
+    loop items in {_v}'s inventory:
+        set {_s} to index of loop-slot
+        set {_i} to full nbt of loop-slot
+        set int tag "Slot" of {_i} to {_s}
+        add {_i} to {_i::*}
+    set {_n} to nbt from "{}"
+    set compound list tag "StashItems" of {_n} to {_i::*}
+    set {_c} to chest named "&cDeath Stash: %{_v}%" with lore "&7This death stash isn't expired yet! %nl%%nl%&7Right-Click to claim the items%nl%&7Shift Right-Click to preview the items"
+    add {_n} to nbt of {_c}
+    set double tag "ID" of nbt of {_c} to unix timestamp of now
+    set string tag "Victim" of nbt of {_c} to "%{_v}%"
+    drop {_c} at {_v}'s location
+
+function openStash(p: player):
+    set {_stash} to chest inventory with 5 rows named "&cDeath Stash of %string tag "Victim" of nbt of {_p}'s tool%"
+    set {_i::*} to compound list tag "StashItems" of nbt of {_p}'s tool
+    set slot (integers between 0 and 99) of {_stash} to black stained glass pane named "&7"
+    loop {_i::*}:
+        set {_s} to int tag "Slot" of loop-value
+        set {_i} to nbt item from loop-value
+        set slot {_s} of {_stash} to {_i}
+    open {_stash} to {_p}
+
+#----------( GENERAL STUFF )----------#
+
+on right click with chest:
+    name of player's tool contains "&cDeath Stash"
+    cancel event
+
+    if player is sneaking:
+        set {_nbt} to nbt of player's tool
+        if unix date of (double tag "ID" of {_nbt}) was less than {@expire} ago:
+            openStash(player)
+        else:
+            send action bar "&cThis Stash is already expired!" to player
+            set player' tool to chest named "&cDeath Stash: %string tag "Victim" of nbt of player's tool%" with lore "&cDeath Stash: %{_v}%" with lore "&7This death stash is already expired!"
+    else:
+        set {_i::*} to compound list tag "StashItems" of nbt of player's tool
+        remove player's tool from player's inventory
+        loop {_i::*}:
+            give player nbt item from loop-value
+
+on death of player:
+    if {stashes::%attacker's uuid%} is true:
+        cancel drops
+        saveStash(victim)
+    else:
+        cancel drops
+        loop items in victim's inventory:
+            drop loop-item at location of victim 
+
+on inventory click: 
+    name of event-inventory contains "&cDeath Stash"
+    cancel event
+
+#----------( ACTIVATE & DISABLE )----------#
+
+command /togglestash:
+    permission: stashes.use
+    permission message: &cYou have no permission to do that!
+    trigger:
+        if {stashes::%player's uuid%} is true:
+            delete {stashes::%player's uuid%}
+            send "&7 "
+            send "&c&lYou deactivated your stashes!"
+            send "&7 "
+            stop 
+        set {stashes::%player's uuid%} to true
+        send "&7 "
+        send "&a&lYou activated your stashes!"
+        send "&7 "
